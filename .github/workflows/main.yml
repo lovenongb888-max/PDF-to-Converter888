@@ -28,17 +28,18 @@ jobs:
         with:
           gradle-version: 8.9
 
-      # รันระบบจำลองเพื่อสร้างคำสั่งคอมไพล์โดยตรง ไม่ต้องผ่านสคริปต์กวนใจ
-      - name: Build release APK
+      # เปลี่ยนเป็น assembleDebug เพื่อให้ระบบเซ็นแอปอัตโนมัติ ไม่ต้องการ Keystore Secrets
+      - name: Build Debug APK
         run: |
-          gradle assembleRelease --no-daemon \
+          gradle assembleDebug --no-daemon \
             -PappVersion="1.0.0" \
             -PappCode="${{ github.run_number }}"
 
+      # คัดลอกไฟล์แอปที่สร้างเสร็จจากโฟลเดอร์ debug มาเตรียมส่งออก
       - name: Rename and Prepare APK
         run: |
           mkdir -p output
-          cp app/build/outputs/apk/release/app-release-unsigned.apk output/PDF-to-Converter888.apk || cp app/build/outputs/apk/release/app-release.apk output/PDF-to-Converter888.apk
+          cp app/build/outputs/apk/debug/app-debug.apk output/PDF-to-Converter888.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
