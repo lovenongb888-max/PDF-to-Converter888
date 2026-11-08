@@ -23,7 +23,13 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Set up Gradle Wrapper
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.9
+          generate-job-summary: true
+
+      - name: Fix Wrapper Files
         run: |
           mkdir -p gradle/wrapper
           cat << 'EOF' > gradle/wrapper/gradle-wrapper.properties
@@ -33,9 +39,9 @@ jobs:
           zipStoreBase=GRADLE_USER_HOME
           zipStorePath=wrapper/dists
           EOF
-
-      - name: Generate official gradlew
-        run: gradle wrapper --gradle-version 8.9
+          
+          # ใช้เครื่องยนต์จากตัว setup-gradle มาช่วยเขียนสคริปต์รันของแท้ให้
+          gradle wrapper --gradle-version 8.9
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
