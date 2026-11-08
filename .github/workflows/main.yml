@@ -28,7 +28,9 @@ jobs:
         with:
           gradle-version: 8.9
 
-      # ถ้าตั้ง Secrets KEYSTORE_BASE64 ไว้ จะเซ็นด้วย keystore ของคุณ (อัปเดตทับแอพเดิมได้)
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
       - name: Prepare keystore (optional)
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -52,12 +54,12 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: >
-          gradle assembleRelease --no-daemon
+          ./gradlew assembleRelease --no-daemon
           -PappVersion="$APP_VERSION"
           -PappCode="${{ github.run_number }}"
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/release/app-release.apk PDF-to-Converter888.apk
+        run: cp app/build/outputs/apk/release/app-release-unsigned.apk PDF-to-Converter888.apk || cp app/build/outputs/apk/release/app-release.apk PDF-to-Converter888.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
