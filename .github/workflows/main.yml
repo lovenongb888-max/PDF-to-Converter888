@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/actions/checkout@v4
+        uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -28,12 +28,8 @@ jobs:
         with:
           gradle-version: 8.9
 
-      # ใช้คำสั่งภายในของระบบ setup-gradle เพื่อสร้างคำสั่งคอมไพล์โดยตรง ไม่ต้องใช้ gradlew ในเครื่อง
+      # รันระบบจำลองเพื่อสร้างคำสั่งคอมไพล์โดยตรง ไม่ต้องผ่านสคริปต์กวนใจ
       - name: Build release APK
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           gradle assembleRelease --no-daemon \
             -PappVersion="1.0.0" \
