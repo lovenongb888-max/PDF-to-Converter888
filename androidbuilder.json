@@ -1,6 +1,6 @@
 {
   "_help": "Android Builder settings. name = app name on the phone, id = package id, iconUrl = link to an icon image (or use the App icon button), versionName/versionCode = app version, minSdk/targetSdk = Android API levels (web apps), release = true builds a Play Store bundle (.aab), tv = true adds Android TV support (website and web apps), repo = GitHub repo used to build (blank = auto-create). Keep valid JSON.",
-  "repo": "",
+  "repo": "lovenongb888-max/PDF-to-Converter888",
   "iconUrl": "",
   "release": false,
   "tv": false,
