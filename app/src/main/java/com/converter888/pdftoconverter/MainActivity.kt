@@ -32,7 +32,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
@@ -72,7 +71,7 @@ fun PDFConverterApp(onExitApp: () -> Unit) {
     var convertedImages by remember { mutableStateOf<List<File>>(emptyList()) }
     var isConverting by remember { mutableStateOf(false) }
     
-    // สถานะความละเอียด: 1 = ปกติ (100 DPI), 2 = คมชัดสูง (200 DPI), 3 = ชัดพิเศษ (300 DPI)
+    // สถานะความละเอียด: 0 = ปกติ (100 DPI), 1 = คมชัดสูง (200 DPI), 2 = ชัดพิเศษ (300 DPI)
     var selectedResolutionIndex by remember { mutableStateOf(1) }
     val resolutions = listOf("ปกติ (100 DPI)", "คมชัดสูง (200 DPI)", "ชัดพิเศษ (300 DPI)")
 
@@ -225,3 +224,4 @@ fun PDFConverterApp(onExitApp: () -> Unit) {
                                         2 -> 3.0f  // 300 DPI
                                         else -> 2.0f
                                     }
+                                    convertedImages = withContext(Dispatchers.IO) {
