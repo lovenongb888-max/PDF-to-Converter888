@@ -4,9 +4,11 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.widget.Toast
+import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -16,24 +18,37 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import org.json.JSONObject
-import java.io.File
 import kotlin.system.exitProcess
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        checkAppUpdate(this)
 
         setContent {
             var showExitDialog by remember { mutableStateOf(false) }
+            var selectedFileName by remember { mutableStateOf<String?>(null) }
+            var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
+
+            // ใช้ Android Storage Access Framework เพื่อเปิดตัวเลือกไฟล์ของเครื่อง
+            val pdfPicker = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.OpenDocument()
+            ) { uri: Uri? ->
+                if (uri != null) {
+                    selectedFileUri = uri
+                    selectedFileName = getDisplayName(uri)
+                    try {
+                        contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                    } catch (_: SecurityException) {
+                        // ผู้ให้บริการไฟล์บางรายไม่รองรับ persistable permission
+                    }
+                }
+            }
 
             MaterialTheme {
                 Box(
@@ -51,7 +66,7 @@ class MainActivity : ComponentActivity() {
                             .align(Alignment.TopEnd)
                             .padding(16.dp)
                     ) {
-                        Text("❌", fontSize = 24.sp, color = Color.White)
+                        Text("✕", fontSize = 24.sp, color = Color.White)
                     }
 
                     Column(
@@ -61,17 +76,40 @@ class MainActivity : ComponentActivity() {
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(text = "📄 ➔ 🖼️", fontSize = 64.sp, color = Color.White)
+                        Text(text = "PDF", fontSize = 58.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text(text = "PDF to Converter888", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(
+                            text = "PDF to Converter888",
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            textAlign = TextAlign.Center
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "แปลงไฟล์ปลอดภัย ไร้การบันทึกข้อมูล", fontSize = 14.sp, color = Color.White.copy(alpha = 0.8f))
-                        Spacer(modifier = Modifier.height(48.dp))
+                        Text(
+                            text = "เลือกไฟล์ PDF จากอุปกรณ์ของคุณ",
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.85f)
+                        )
+                        Spacer(modifier = Modifier.height(36.dp))
                         Button(
-                            onClick = { },
+                            onClick = { pdfPicker.launch(arrayOf("application/pdf")) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color.White)
                         ) {
-                            Text("เลือกไฟล์ PDF", color = Color(0xFF8E24AA), fontWeight = FontWeight.Bold)
+                            Text(
+                                "เลือกไฟล์ PDF",
+                                color = Color(0xFF8E24AA),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        selectedFileName?.let { name ->
+                            Spacer(modifier = Modifier.height(20.dp))
+                            Text(
+                                text = "ไฟล์ที่เลือก: $name",
+                                color = Color.White,
+                                textAlign = TextAlign.Center
+                            )
                         }
                     }
 
@@ -79,7 +117,9 @@ class MainActivity : ComponentActivity() {
                         AlertDialog(
                             onDismissRequest = { showExitDialog = false },
                             title = { Text("ปิดแอปและล้างแคช?") },
-                            text = { Text("ระบบจะลบไฟล์แคชที่เก็บไว้ในเครื่องทั้งหมด แล้วทำการปิดแอปพลิเคชัน") },
+                            text = {
+                                Text("ระบบจะลบไฟล์แคชของแอป แล้วปิดแอปพลิเคชัน")
+                            },
                             confirmButton = {
                                 Button(
                                     onClick = {
@@ -103,41 +143,21 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun getDisplayName(uri: Uri): String {
+        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameColumn = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (nameColumn >= 0 && cursor.moveToFirst()) {
+                return cursor.getString(nameColumn) ?: "PDF ที่เลือก"
+            }
+        }
+        return uri.lastPathSegment ?: "PDF ที่เลือก"
+    }
+
     private fun clearAppCache(context: Context) {
         try {
             context.cacheDir.deleteRecursively()
         } catch (e: Exception) {
             e.printStackTrace()
-        }
-    }
-
-    private fun checkAppUpdate(context: Context) {
-        val currentVersion = "1.0.0"
-        val repoUrl = "https://github.com"
-        
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val client = OkHttpClient()
-                val request = Request.Builder().url(repoUrl).build()
-                val response = client.newCall(request).execute()
-                val body = response.body?.string()
-                
-                if (!body.isNullOrEmpty()) {
-                    val json = JSONObject(body)
-                    val latestVersion = json.getString("tag_name").replace("v", "")
-                    val downloadUrl = json.getString("html_url")
-                    
-                    if (latestVersion != currentVersion) {
-                        launch(Dispatchers.Main) {
-                            Toast.makeText(context, "พบเวอร์ชันใหม่ v$latestVersion กำลังเปิดเบราว์เซอร์เพื่อดาวน์โหลด", Toast.LENGTH_LONG).show()
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl))
-                            context.startActivity(intent)
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
         }
     }
 }
