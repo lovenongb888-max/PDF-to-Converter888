@@ -46,10 +46,7 @@ import kotlin.system.exitProcess
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
-        // ซ่อน Action Bar ด้านบนสุดเพื่อความสวยงามเต็มหน้าจอ
         actionBar?.hide()
-        
         setContent {
             PDFConverterApp(onExitApp = {
                 finishAffinity()
@@ -71,7 +68,6 @@ fun PDFConverterApp(onExitApp: () -> Unit) {
     var convertedImages by remember { mutableStateOf<List<File>>(emptyList()) }
     var isConverting by remember { mutableStateOf(false) }
     
-    // สถานะความละเอียด: 0 = ปกติ (100 DPI), 1 = คมชัดสูง (200 DPI), 2 = ชัดพิเศษ (300 DPI)
     var selectedResolutionIndex by remember { mutableStateOf(1) }
     val resolutions = listOf("ปกติ (100 DPI)", "คมชัดสูง (200 DPI)", "ชัดพิเศษ (300 DPI)")
 
@@ -105,7 +101,6 @@ fun PDFConverterApp(onExitApp: () -> Unit) {
                 )
             )
     ) {
-        // ปุ่มกากบาท (X) ปิดแอป
         IconButton(
             onClick = onExitApp,
             modifier = Modifier
@@ -123,26 +118,10 @@ fun PDFConverterApp(onExitApp: () -> Unit) {
             verticalArrangement = Arrangement.Center
         ) {
             if (selectedPdfUri == null) {
-                // หน้าแรกหลัก
-                Text(
-                    text = "PDF",
-                    color = Color.White,
-                    fontSize = 72.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Text(text = "PDF", color = Color.White, fontSize = 72.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "PDF to Converter888",
-                    color = Color.White,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "เลือกไฟล์ PDF จากอุปกรณ์ของคุณ",
-                    color = Color.White.copy(alpha = 0.8f),
-                    fontSize = 16.sp,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                Text(text = "PDF to Converter888", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text(text = "เลือกไฟล์ PDF จากอุปกรณ์ของคุณ", color = Color.White.copy(alpha = 0.8f), fontSize = 16.sp, modifier = Modifier.padding(vertical = 8.dp))
                 Spacer(modifier = Modifier.height(32.dp))
                 Button(
                     onClick = { pdfPickerLauncher.launch("application/pdf") },
@@ -153,7 +132,6 @@ fun PDFConverterApp(onExitApp: () -> Unit) {
                     Text(text = "เลือกไฟล์ PDF", color = Color(0xFF4A148C), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             } else {
-                // หน้าตัวเลือกเมื่อเลือกไฟล์เสร็จแล้ว
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(top = 60.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.15f)),
@@ -170,7 +148,6 @@ fun PDFConverterApp(onExitApp: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // ส่วนเลือกความละเอียด
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.1f)),
@@ -193,11 +170,7 @@ fun PDFConverterApp(onExitApp: () -> Unit) {
                                         onClick = { selectedResolutionIndex = index },
                                         colors = RadioButtonDefaults.colors(selectedColor = Color.White, unselectedColor = Color.White.copy(alpha = 0.6f))
                                     )
-                                    Text(
-                                        text = text.split(" ")[0], // เอาเฉพาะคำแรก เช่น ปกติ, คมชัดสูง
-                                        color = Color.White,
-                                        fontSize = 12.sp
-                                    )
+                                    Text(text = text.split(" ")[0], color = Color.White, fontSize = 12.sp)
                                 }
                             }
                         }
@@ -219,9 +192,25 @@ fun PDFConverterApp(onExitApp: () -> Unit) {
                                 scope.launch {
                                     isConverting = true
                                     val scale = when(selectedResolutionIndex) {
-                                        0 -> 1.0f  // 100 DPI
-                                        1 -> 2.0f  // 200 DPI
-                                        2 -> 3.0f  // 300 DPI
+                                        0 -> 1.0f
+                                        1 -> 2.0f
+                                        2 -> 3.0f
                                         else -> 2.0f
                                     }
                                     convertedImages = withContext(Dispatchers.IO) {
+                                        convertPdfToImages(context, selectedPdfUri!!, scale)
+                                    }
+                                    isConverting = false
+                                    Toast.makeText(context, "แปลงไฟล์เรียบร้อยแล้ว!", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("แปลงเป็น PNG", color = Color.White)
+                        }
+
+                        Button(
+                            onClick = {
+                                clearAppCache(context)
+                                selectedPdfUri = null
