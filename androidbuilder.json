@@ -4,10 +4,10 @@
   "iconUrl": "",
   "release": false,
   "tv": false,
-  "name": "My App",
-  "id": "com.example.myapp",
-  "versionName": "1.0.0",
-  "versionCode": 1,
-  "minSdk": 24,
-  "targetSdk": 36
+  "name": "PDF to Converter888",
+  "id": "com.converter888.pdftoconverter",
+  "versionName": "1.0.2",
+  "versionCode": 3,
+  "minSdk": 29,
+  "targetSdk": 34
 }
