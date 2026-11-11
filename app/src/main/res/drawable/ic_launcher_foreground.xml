@@ -4,19 +4,28 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- กระดาษ PDF -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M31,19h31l17,17v52h-48z" />
+        android:pathData="M35,27 L58,27 L73,42 L73,81 L35,81 Z" />
+    <!-- มุมพับ -->
     <path
-        android:fillColor="#E1BEE7"
-        android:pathData="M62,19v18h17z" />
+        android:fillColor="#D9D0FF"
+        android:pathData="M58,27 L58,42 L73,42 Z" />
+    <!-- เส้นข้อความ -->
     <path
-        android:fillColor="#8E24AA"
-        android:pathData="M39,49h31v5h-31zM39,60h31v5h-31zM39,71h23v5h-23z" />
+        android:pathData="M42,52 L66,52 M42,60 L66,60 M42,68 L56,68"
+        android:strokeColor="#5B3DF5"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+    <!-- ตราแปลงไฟล์ -->
     <path
-        android:fillColor="#D81B60"
-        android:pathData="M60,76h25v16h-25z" />
+        android:fillColor="#FF7A59"
+        android:pathData="M58,74 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0" />
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M65,81h15v3h-15zM65,87h11v3h-11z" />
+        android:pathData="M63,72 L68,77.5 L73,72"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
 </vector>
