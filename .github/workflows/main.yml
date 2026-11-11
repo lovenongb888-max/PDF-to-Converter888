@@ -71,3 +71,4 @@ jobs:
         with:
           files: PDF-to-Converter888.apk
           generate_release_notes: true
+}
