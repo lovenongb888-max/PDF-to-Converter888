@@ -61,10 +61,10 @@ git push
 
 **ปล่อยเวอร์ชันใหม่ให้แอพแจ้งอัปเดต**
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+git tag v1.2.0
+git push origin v1.2.0
 ```
-(หรือบนเว็บ: Releases → Draft a new release → ตั้ง tag `v1.1.0` → Publish)
+(หรือบนเว็บ: Releases → Draft a new release → ตั้ง tag `v1.2.0` → Publish)
 
 ## Build ในเครื่อง
 ต้องมี JDK 17, Android SDK 34 และ Gradle 8.9+
