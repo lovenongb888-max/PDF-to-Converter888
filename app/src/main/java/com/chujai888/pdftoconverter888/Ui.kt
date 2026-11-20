@@ -1,6 +1,16 @@
 package com.chujai888.pdftoconverter888
-import androidx.compose.runtime.withFrameNanos
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextStyle
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -561,8 +571,24 @@ private fun ReaderScreen(
     var gotoOpen by remember { mutableStateOf(false) }
     var badge by remember { mutableStateOf(false) }
     var viewportW by remember { mutableIntStateOf(1) }
+    var viewportH by remember { mutableIntStateOf(1) }
+
+    // ค้นหาในเอกสาร
+    var searchOpen by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    var hits by remember { mutableStateOf<List<SearchHit>>(emptyList()) }
+    var hitIndex by remember { mutableIntStateOf(0) }
+    var searching by remember { mutableStateOf(false) }
+    var searched by remember { mutableStateOf(false) }
+    var progress by remember { mutableIntStateOf(0) }
+    var searchJob by remember { mutableStateOf<Job?>(null) }
+    val focusManager = LocalFocusManager.current
+    val searchFocus = remember { FocusRequester() }
     // ตำแหน่งที่ต้องเลื่อนไปหลังเปลี่ยนระดับซูม: [index, offset, horizontal]
     var pending by remember { mutableStateOf<IntArray?>(null) }
+
+    val hitsByPage = remember(hits) { hits.groupBy { it.page } }
+    val activeHit = hits.getOrNull(hitIndex)
 
     // หน้าที่อยู่กลางจอ
     val current by remember {
@@ -603,6 +629,73 @@ private fun ReaderScreen(
         if (pending === p) pending = null
     }
 
+    // เลื่อนไปยังคำที่ค้นเจอ (วางไว้ราว 30% จากขอบบนของจอ)
+    fun goToHit(i: Int) {
+        val h = hits.getOrNull(i) ?: return
+        hitIndex = i
+        scope.launch {
+            val size = doc.sizes[h.page]
+            val pageH = viewportW * zoom * size.second / size.first
+            val off = (h.t * pageH - viewportH * 0.3f).roundToInt().coerceAtLeast(0)
+            listState.scrollToItem(h.page, off)
+            val x = ((h.l + h.r) / 2f * viewportW * zoom - viewportW / 2f).roundToInt().coerceAtLeast(0)
+            hScroll.scrollTo(x)
+        }
+    }
+
+    fun closeSearch() {
+        searchJob?.cancel()
+        searching = false
+        searched = false
+        searchOpen = false
+        hits = emptyList()
+        hitIndex = 0
+        focusManager.clearFocus()
+    }
+
+    fun runSearch() {
+        val q = query.trim()
+        searchJob?.cancel()
+        if (q.isEmpty()) {
+            hits = emptyList()
+            searched = false
+            searching = false
+            return
+        }
+        focusManager.clearFocus()
+        searching = true
+        searched = false
+        progress = 0
+        hits = emptyList()
+        hitIndex = 0
+        searchJob = scope.launch {
+            val found = try {
+                PdfSearch.search(doc, q) { progress = it }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                null
+            }
+            searching = false
+            searched = true
+            if (found == null) {
+                Toast.makeText(ctx, "ค้นหาไม่สำเร็จ", Toast.LENGTH_LONG).show()
+            } else {
+                hits = found
+                if (found.isNotEmpty()) goToHit(0)
+            }
+        }
+    }
+
+    BackHandler(enabled = searchOpen) { closeSearch() }
+
+    LaunchedEffect(searchOpen) {
+        if (searchOpen) {
+            delay(150)
+            runCatching { searchFocus.requestFocus() }
+        }
+    }
+
     // เมนูลอยซ่อนเองหลัง 4 วินาที
     LaunchedEffect(chrome, tick, menuOpen, gotoOpen) {
         if (chrome && !menuOpen && !gotoOpen) {
@@ -628,7 +721,10 @@ private fun ReaderScreen(
             .fillMaxSize()
             .background(mode.bg)
             .windowInsetsPadding(WindowInsets.displayCutout)
-            .onSizeChanged { viewportW = it.width.coerceAtLeast(1) }
+            .onSizeChanged {
+                viewportW = it.width.coerceAtLeast(1)
+                viewportH = it.height.coerceAtLeast(1)
+            }
             // บีบสองนิ้วเพื่อซูม (นิ้วเดียวยังเลื่อนหน้าได้ตามปกติ)
             .pointerInput(Unit) {
                 awaitEachGesture {
@@ -665,7 +761,7 @@ private fun ReaderScreen(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 items(doc.pageCount, key = { it }) { i ->
-                    PageItem(doc, i, renderW, mode)
+                    PageItem(doc, i, renderW, mode, hitsByPage[i].orEmpty(), activeHit?.takeIf { it.page == i })
                 }
             }
         }
@@ -680,7 +776,7 @@ private fun ReaderScreen(
 
         // ปุ่มลอยมุมขวาบน: เมนู + ปิดแอพ
         AnimatedVisibility(
-            visible = chrome,
+            visible = chrome && !searchOpen,
             modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
             enter = fadeIn(),
             exit = fadeOut()
@@ -694,6 +790,14 @@ private fun ReaderScreen(
                         DropdownMenuItem(
                             text = { Text("แปลงไฟล์เป็นรูป (PNG / JPG)") },
                             onClick = { menuOpen = false; onConvert(current) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("ค้นหาในเอกสาร") },
+                            onClick = {
+                                menuOpen = false
+                                chrome = false
+                                searchOpen = true
+                            }
                         )
                         DropdownMenuItem(
                             text = { Text("ไปยังหน้า…") },
@@ -735,6 +839,34 @@ private fun ReaderScreen(
                     Icon(Icons.Filled.Close, contentDescription = "ปิดแอพ", tint = Color.White)
                 }
             }
+        }
+
+        // แถบค้นหา (แสดงเฉพาะตอนกดค้นหา)
+        AnimatedVisibility(
+            visible = searchOpen,
+            modifier = Modifier.align(Alignment.TopCenter).padding(12.dp),
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            SearchBar(
+                query = query,
+                onQuery = {
+                    query = it
+                    searched = false
+                },
+                status = when {
+                    searching -> "$progress/${doc.pageCount}"
+                    hits.isNotEmpty() -> "${hitIndex + 1}/${hits.size}"
+                    searched -> "ไม่พบ"
+                    else -> ""
+                },
+                canNav = hits.isNotEmpty(),
+                onSearch = { runSearch() },
+                onPrev = { if (hits.isNotEmpty()) goToHit((hitIndex - 1 + hits.size) % hits.size) },
+                onNext = { if (hits.isNotEmpty()) goToHit((hitIndex + 1) % hits.size) },
+                onClose = { closeSearch() },
+                focus = searchFocus
+            )
         }
 
         // แถบควบคุมลอยด้านล่าง: ซูม + เลื่อนหน้า (โผล่เมื่อแตะจอ)
@@ -810,7 +942,14 @@ private fun ReaderScreen(
 }
 
 @Composable
-private fun PageItem(doc: PdfDoc, index: Int, renderW: Int, mode: ReadMode) {
+private fun PageItem(
+    doc: PdfDoc,
+    index: Int,
+    renderW: Int,
+    mode: ReadMode,
+    hits: List<SearchHit>,
+    active: SearchHit?
+) {
     var bmp by remember(doc, index) { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(doc, index, renderW) {
         if (bmp != null) delay(200) // รอให้หยุดซูมก่อนค่อยเรนเดอร์ใหม่
@@ -832,6 +971,79 @@ private fun PageItem(doc: PdfDoc, index: Int, renderW: Int, mode: ReadMode) {
                 contentScale = ContentScale.FillBounds,
                 colorFilter = mode.filter
             )
+        }
+        if (hits.isNotEmpty()) {
+            Canvas(Modifier.fillMaxSize()) {
+                hits.forEach { h ->
+                    drawRect(
+                        color = if (h == active) Color(0xAAFF7A59) else Color(0x66FFD400),
+                        topLeft = Offset(h.l * size.width, h.t * size.height),
+                        size = Size(
+                            ((h.r - h.l) * size.width).coerceAtLeast(3f),
+                            ((h.b - h.t) * size.height).coerceAtLeast(3f)
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchBar(
+    query: String,
+    onQuery: (String) -> Unit,
+    status: String,
+    canNav: Boolean,
+    onSearch: () -> Unit,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    onClose: () -> Unit,
+    focus: FocusRequester
+) {
+    val navTint = if (canNav) Color.White else Color(0x55FFFFFF)
+    Row(
+        Modifier
+            .widthIn(max = 520.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(28.dp))
+            .background(Color(0xF21B1530))
+            .padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.Search, contentDescription = null, tint = Color.White)
+        Spacer(Modifier.width(8.dp))
+        Box(Modifier.weight(1f)) {
+            if (query.isEmpty()) {
+                Text("ค้นหาในเอกสาร", color = Color(0x99FFFFFF), fontSize = 15.sp)
+            }
+            BasicTextField(
+                value = query,
+                onValueChange = onQuery,
+                singleLine = true,
+                textStyle = TextStyle(color = Color.White, fontSize = 15.sp),
+                cursorBrush = SolidColor(Color.White),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { onSearch() }),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus)
+            )
+        }
+        if (status.isNotEmpty()) {
+            Text(
+                status,
+                color = Color(0xCCFFFFFF),
+                fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 6.dp)
+            )
+        }
+        IconButton(onClick = onPrev, enabled = canNav, modifier = Modifier.size(38.dp)) {
+            Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "ผลลัพธ์ก่อนหน้า", tint = navTint)
+        }
+        IconButton(onClick = onNext, enabled = canNav, modifier = Modifier.size(38.dp)) {
+            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "ผลลัพธ์ถัดไป", tint = navTint)
+        }
+        IconButton(onClick = onClose, modifier = Modifier.size(38.dp)) {
+            Icon(Icons.Filled.Close, contentDescription = "ปิดการค้นหา", tint = Color.White)
         }
     }
 }
