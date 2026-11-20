@@ -4,7 +4,7 @@ plugins {
 }
 
 // เวอร์ชันถูกกำหนดจาก GitHub Actions (tag v1.2.3 -> versionName 1.2.3)
-val appVersionName = (findProperty("appVersion") as String?) ?: "1.1.0"
+val appVersionName = (findProperty("appVersion") as String?) ?: "1.2.0"
 val appVersionCode = (findProperty("appCode") as String?)?.toIntOrNull() ?: 1
 
 // ถ้ามี keystore (จาก GitHub Secrets) จะเซ็นด้วย keystore ของคุณ ไม่งั้นใช้ debug key
